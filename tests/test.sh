@@ -1,147 +1,143 @@
-# Autograder – SELinux Permanent File Context
+# `tests/test.sh`
 
 ```bash
 #!/bin/bash
 
 # ============================================================
-# SELinux fcontext Autograder
+# SELinux fcontext Assignment - Autograder
 # ============================================================
 
-SCRIPT="${1:-student_solution.sh}"
+SCRIPT="student_solution.sh"
 
 TOTAL=100
 SCORE=0
-FAILED=0
 
-echo "=========================================="
-echo " SELinux fcontext Autograder"
-echo "=========================================="
+echo "================================================"
+echo " SELinux Permanent File Context Autograder"
+echo "================================================"
 
 # ------------------------------------------------------------
-# Check whether student_solution.sh exists
+# Check student solution file
 # ------------------------------------------------------------
 
 if [ ! -f "$SCRIPT" ]; then
-    echo "FAIL: $SCRIPT not found"
+    echo "ERROR: $SCRIPT was not found."
     exit 1
 fi
 
-echo
-echo "Checking student solution..."
+echo "Student solution found: $SCRIPT"
 echo
 
 # ------------------------------------------------------------
-# TEST 1 – Create /webdata/files
+# Test 1 - Create /webdata/files
 # 10 Marks
 # ------------------------------------------------------------
 
 if grep -Eq 'mkdir[[:space:]]+-p[[:space:]]+/webdata/files' "$SCRIPT"; then
-    echo "PASS [10/10] Directory creation command found"
+    echo "PASS: Create /webdata/files .............. 10/10"
     SCORE=$((SCORE + 10))
 else
-    echo "FAIL [0/10] mkdir -p /webdata/files not found"
-    FAILED=1
+    echo "FAIL: Create /webdata/files .............. 0/10"
 fi
 
-
 # ------------------------------------------------------------
-# TEST 2 – Create index.html
+# Test 2 - Create index.html
 # 10 Marks
 # ------------------------------------------------------------
 
 if grep -Eq 'touch[[:space:]]+/webdata/files/index\.html' "$SCRIPT"; then
-    echo "PASS [10/10] index.html creation command found"
+    echo "PASS: Create index.html .................. 10/10"
     SCORE=$((SCORE + 10))
 else
-    echo "FAIL [0/10] index.html creation command not found"
-    FAILED=1
+    echo "FAIL: Create index.html .................. 0/10"
 fi
 
-
 # ------------------------------------------------------------
-# TEST 3 – Check SELinux context
+# Test 3 - Check SELinux context
 # 10 Marks
 # ------------------------------------------------------------
 
-if grep -Eq 'ls[[:space:]]+-Zd[[:space:]]+/webdata' "$SCRIPT" \
-   && grep -Eq 'ls[[:space:]]+-Z[[:space:]]+/webdata/files/index\.html' "$SCRIPT"; then
+if grep -Eq 'ls[[:space:]]+-Zd[[:space:]]+/webdata' "$SCRIPT" && \
+   grep -Eq 'ls[[:space:]]+-Z[[:space:]]+/webdata/files/index\.html' "$SCRIPT"; then
 
-    echo "PASS [10/10] SELinux context checking commands found"
+    echo "PASS: Check SELinux context .............. 10/10"
     SCORE=$((SCORE + 10))
 else
-    echo "FAIL [0/10] Required ls -Z / ls -Zd commands not found"
-    FAILED=1
+    echo "FAIL: Check SELinux context .............. 0/10"
 fi
 
-
 # ------------------------------------------------------------
-# TEST 4 – semanage fcontext
+# Test 4 - semanage fcontext
 # 25 Marks
 # ------------------------------------------------------------
 
-if grep -Eq 'semanage[[:space:]]+fcontext' "$SCRIPT" \
-   && grep -Eq 'httpd_sys_content_t' "$SCRIPT"; then
+if grep -Eq 'semanage[[:space:]]+fcontext' "$SCRIPT" && \
+   grep -Eq 'httpd_sys_content_t' "$SCRIPT"; then
 
-    echo "PASS [25/25] semanage fcontext rule found"
+    echo "PASS: semanage fcontext rule ............. 25/25"
     SCORE=$((SCORE + 25))
 else
-    echo "FAIL [0/25] Required semanage fcontext rule not found"
-    FAILED=1
+    echo "FAIL: semanage fcontext rule ............. 0/25"
 fi
 
-
 # ------------------------------------------------------------
-# TEST 5 – Correct recursive pattern
+# Test 5 - Correct recursive pattern
 # 15 Marks
 # ------------------------------------------------------------
 
 if grep -Fq '/webdata(/.*)?' "$SCRIPT"; then
-    echo "PASS [15/15] Correct /webdata(/.*)? pattern found"
+    echo "PASS: Correct recursive pattern .......... 15/15"
     SCORE=$((SCORE + 15))
 else
-    echo "FAIL [0/15] Required /webdata(/.*)? pattern not found"
-    FAILED=1
+    echo "FAIL: Correct recursive pattern .......... 0/15"
 fi
 
-
 # ------------------------------------------------------------
-# TEST 6 – restorecon
+# Test 6 - restorecon
 # 15 Marks
 # ------------------------------------------------------------
 
 if grep -Eq 'restorecon[[:space:]]+-Rv[[:space:]]+/webdata' "$SCRIPT"; then
-    echo "PASS [15/15] restorecon -Rv /webdata found"
+    echo "PASS: restorecon -Rv /webdata ........... 15/15"
     SCORE=$((SCORE + 15))
 else
-    echo "FAIL [0/15] restorecon -Rv /webdata not found"
-    FAILED=1
+    echo "FAIL: restorecon -Rv /webdata ........... 0/15"
 fi
 
-
 # ------------------------------------------------------------
-# TEST 7 – Final verification
+# Test 7 - Final verification
 # 15 Marks
 # ------------------------------------------------------------
 
-if grep -Eq 'ls[[:space:]]+-Zd[[:space:]]+/webdata' "$SCRIPT" \
-   && grep -Eq 'ls[[:space:]]+-Z[[:space:]]+/webdata/files/index\.html' "$SCRIPT"; then
+# We require the context commands to appear.
+# The student should use them after restorecon as instructed.
 
-    echo "PASS [15/15] Final SELinux context verification found"
+RESTORE_LINE=$(grep -n 'restorecon[[:space:]]\+-Rv[[:space:]]\+/webdata' "$SCRIPT" | tail -1 | cut -d: -f1)
+
+FINAL_LS=$(grep -n 'ls[[:space:]]\+-Zd[[:space:]]\+/webdata' "$SCRIPT" | tail -1 | cut -d: -f1)
+
+FINAL_FILE=$(grep -n 'ls[[:space:]]\+-Z[[:space:]]\+/webdata/files/index\.html' "$SCRIPT" | tail -1 | cut -d: -f1)
+
+if [ -n "$RESTORE_LINE" ] && \
+   [ -n "$FINAL_LS" ] && \
+   [ -n "$FINAL_FILE" ] && \
+   [ "$FINAL_LS" -gt "$RESTORE_LINE" ] && \
+   [ "$FINAL_FILE" -gt "$RESTORE_LINE" ]; then
+
+    echo "PASS: Final context verification ........ 15/15"
     SCORE=$((SCORE + 15))
 else
-    echo "FAIL [0/15] Final context verification not found"
-    FAILED=1
+    echo "FAIL: Final context verification ........ 0/15"
 fi
 
-
 # ------------------------------------------------------------
-# FINAL RESULT
+# Final score
 # ------------------------------------------------------------
 
 echo
-echo "=========================================="
+echo "================================================"
 echo " FINAL RESULT"
-echo "=========================================="
+echo "================================================"
 
 echo "Score: $SCORE / $TOTAL"
 
@@ -150,8 +146,8 @@ if [ "$SCORE" -eq "$TOTAL" ]; then
     echo "Excellent! All required commands were found."
     exit 0
 else
-    echo "STATUS: NEEDS IMPROVEMENT"
-    echo "Please check the failed test cases."
+    echo "STATUS: FAIL"
+    echo "Please review the failed test cases."
     exit 1
 fi
 ```
